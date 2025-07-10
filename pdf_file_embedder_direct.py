@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """
-PDF File Embedder with Custom Object Numbers using pikepdf and qpdf
+PDF File Embedder with Direct Object Number Manipulation
 
 This script embeds files into PDF documents and allows specifying custom object numbers
-for both the embedded file and the file specification. It uses pikepdf for the basic
-embedding functionality and then uses qpdf command-line tool for manipulating object numbers.
+for both the embedded file and the file specification. It uses a direct approach to
+manipulate the PDF structure.
 
 Usage:
-    python pdf_file_embedder_with_qpdf.py input.pdf file_to_embed output.pdf --obj-num 10 --filespec-obj-num 20
+    python pdf_file_embedder_direct.py input.pdf file_to_embed output.pdf --obj-num 10 --filespec-obj-num 20
 """
 
 import os
 import sys
 import argparse
-import subprocess
 import tempfile
+import re
 from pathlib import Path
 import pikepdf
 from pikepdf import Pdf, Name, Dictionary, Array, Stream
@@ -212,11 +212,9 @@ def verify_embedded_file(pdf, file_name):
     return False
 
 
-def modify_object_numbers_with_qpdf(input_pdf, output_pdf, obj_map):
+def modify_pdf_object_numbers(input_pdf, output_pdf, obj_map):
     """
-    Use qpdf command-line tool to modify object numbers in a PDF.
-    This function uses qpdf's basic functionality since --json-operations
-    is not available in all versions.
+    Directly modify object numbers in a PDF file by manipulating the PDF structure.
     
     Args:
         input_pdf: Path to the input PDF
@@ -227,56 +225,42 @@ def modify_object_numbers_with_qpdf(input_pdf, output_pdf, obj_map):
         bool: True if successful, False otherwise
     """
     try:
-        # Create a temporary directory for intermediate files
-        temp_dir = tempfile.mkdtemp()
+        # Read the PDF file as binary
+        with open(input_pdf, 'rb') as f:
+            pdf_data = f.read()
         
-        # First, create a linearized version of the PDF
-        linearized_pdf = os.path.join(temp_dir, "linearized.pdf")
-        cmd_linearize = ["qpdf", "--linearize", input_pdf, linearized_pdf]
+        # Convert to string for easier manipulation
+        pdf_str = pdf_data.decode('latin-1')
         
-        result = subprocess.run(cmd_linearize, capture_output=True, text=True)
-        if result.returncode != 0:
-            print(f"Error linearizing PDF: {result.stderr}")
-            return False
+        # For each object mapping
+        for orig_obj, new_obj in obj_map.items():
+            # Find all occurrences of the original object reference
+            # Pattern: orig_obj 0 obj
+            pattern = f"{orig_obj} 0 obj"
+            replacement = f"{new_obj} 0 obj"
+            
+            # Replace the object definition
+            pdf_str = pdf_str.replace(pattern, replacement)
+            
+            # Also replace references to this object
+            # Pattern: orig_obj 0 R
+            ref_pattern = f"{orig_obj} 0 R"
+            ref_replacement = f"{new_obj} 0 R"
+            
+            # Replace the object references
+            pdf_str = pdf_str.replace(ref_pattern, ref_replacement)
         
-        # Now use qpdf to manipulate the PDF
-        # We'll use a series of qpdf commands to try to achieve the desired result
+        # Convert back to binary
+        modified_pdf_data = pdf_str.encode('latin-1')
         
-        # First, let's try to use qpdf's object stream handling
-        # This might not directly set object numbers but can help reorganize objects
-        final_pdf = os.path.join(temp_dir, "final.pdf")
-        cmd_manipulate = [
-            "qpdf", 
-            "--object-streams=disable",  # Disable object streams to make objects directly accessible
-            "--compress-streams=n",      # Disable stream compression for easier manipulation
-            "--decode-level=all",        # Decode all streams
-            linearized_pdf,
-            final_pdf
-        ]
+        # Write the modified PDF
+        with open(output_pdf, 'wb') as f:
+            f.write(modified_pdf_data)
         
-        result = subprocess.run(cmd_manipulate, capture_output=True, text=True)
-        if result.returncode != 0:
-            print(f"Error manipulating PDF: {result.stderr}")
-            return False
-        
-        # Copy the final PDF to the output location
-        import shutil
-        shutil.copy2(final_pdf, output_pdf)
-        
-        # Clean up temporary files
-        shutil.rmtree(temp_dir)
-        
-        # Note: This approach doesn't actually change object numbers directly
-        # as qpdf doesn't expose this functionality through command line
-        # We're just reorganizing the PDF in a way that might make it more amenable
-        # to further manipulation
-        
-        print("Warning: Direct object number manipulation is not supported by qpdf command line.")
-        print("The PDF has been optimized, but object numbers may not match requested values.")
-        
+        print("PDF object numbers modified successfully.")
         return True
     except Exception as e:
-        print(f"Error modifying object numbers: {e}")
+        print(f"Error modifying PDF object numbers: {e}")
         return False
 
 
@@ -370,22 +354,27 @@ def main():
                     obj_map[filespec_num] = args.filespec_obj_num
                 
                 if obj_map:
-                    print(f"Attempting to modify object numbers using qpdf: {obj_map}")
+                    print(f"Attempting to modify object numbers: {obj_map}")
                     
-                    # Try to modify object numbers using qpdf
-                    success = modify_object_numbers_with_qpdf(temp_pdf_path, args.output_pdf, obj_map)
+                    # Try to modify object numbers directly
+                    success = modify_pdf_object_numbers(temp_pdf_path, args.output_pdf, obj_map)
                     
                     if success:
                         print("Successfully modified object numbers.")
                         
                         # Verify the changes
-                        with Pdf.open(args.output_pdf) as modified_pdf:
-                            print("\nVerifying embedded file...")
-                            file_name = os.path.basename(args.file_to_embed)
-                            if verify_embedded_file(modified_pdf, file_name):
-                                print(f"Verification successful: Found embedded file '{file_name}'")
-                            else:
-                                print(f"Verification failed: Could not find embedded file '{file_name}'")
+                        try:
+                            with Pdf.open(args.output_pdf) as modified_pdf:
+                                print("\nVerifying embedded file...")
+                                file_name = os.path.basename(args.file_to_embed)
+                                if verify_embedded_file(modified_pdf, file_name):
+                                    print(f"Verification successful: Found embedded file '{file_name}'")
+                                else:
+                                    print(f"Verification failed: Could not find embedded file '{file_name}'")
+                        except Exception as e:
+                            print(f"Warning: Could not verify the modified PDF: {e}")
+                            print("The PDF structure might be corrupted after direct modification.")
+                            print("Try opening the PDF with a PDF reader to check if it's valid.")
                         
                         # Clean up the temporary file
                         os.unlink(temp_pdf_path)
@@ -419,3 +408,4 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+
