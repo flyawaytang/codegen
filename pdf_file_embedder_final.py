@@ -21,6 +21,54 @@ import pikepdf
 from pikepdf import Pdf, Name, Dictionary, Array, Stream
 
 
+def manually_set_object_number(pdf, obj, obj_num):
+    """
+    Attempt to manually set the object number for a pikepdf object.
+    This is an experimental function and may not work in all cases.
+    
+    Args:
+        pdf: A pikepdf.Pdf object
+        obj: The pikepdf object to modify
+        obj_num: The desired object number
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        # This is a hacky way to try to set object numbers
+        # It relies on internal pikepdf implementation details that may change
+        
+        # First, check if the object already has an object number
+        if hasattr(obj, 'objgen'):
+            current_obj_num, gen = obj.objgen
+            if current_obj_num == obj_num:
+                # Object already has the desired number
+                return True
+        
+        # Try to access the internal _objects list
+        if hasattr(pdf, '_objects'):
+            # Make sure the list is long enough
+            while len(pdf._objects) <= obj_num:
+                pdf._objects.append(None)
+            
+            # Set the object at the desired position
+            pdf._objects[obj_num] = obj
+            return True
+        
+        # Alternative approach using lower-level access
+        if hasattr(pdf, '_pikepdf'):
+            # This is even more implementation-specific
+            if hasattr(pdf._pikepdf, 'get_object_id'):
+                # Try to set the object ID
+                pdf._pikepdf.get_object_id(obj, obj_num, 0)
+                return True
+        
+        return False
+    except Exception as e:
+        print(f"Warning: Failed to set object number: {e}")
+        return False
+
+
 def analyze_pdf_objects(pdf):
     """
     Analyze the PDF and return information about its objects.
@@ -61,7 +109,7 @@ def analyze_pdf_objects(pdf):
     }
 
 
-def embed_file(pdf, file_path, mime_type=None):
+def embed_file(pdf, file_path, mime_type=None, filespec_obj_num=None):
     """
     Embed a file into the PDF.
     
@@ -69,6 +117,7 @@ def embed_file(pdf, file_path, mime_type=None):
         pdf: A pikepdf.Pdf object
         file_path: Path to the file to embed
         mime_type: Optional MIME type for the embedded file
+        filespec_obj_num: Optional object number to use for the file specification
         
     Returns:
         tuple: (embedded_file_obj, filespec_obj) - The embedded file and filespec objects
@@ -122,6 +171,14 @@ def embed_file(pdf, file_path, mime_type=None):
             F=embedded_file
         )
     )
+    
+    # Try to set the file specification object number if provided
+    if filespec_obj_num is not None:
+        success = manually_set_object_number(pdf, filespec, filespec_obj_num)
+        if success:
+            print(f"Successfully set file specification object number to {filespec_obj_num}")
+        else:
+            print(f"Warning: Failed to set file specification object number to {filespec_obj_num}")
     
     # Add the file to the PDF's embedded files
     if '/Names' not in pdf.Root:
@@ -212,6 +269,8 @@ def main():
     parser.add_argument('--extract', action='store_true', help='Extract embedded files from the PDF')
     parser.add_argument('--output-dir', default='.', help='Directory to save extracted files (default: current directory)')
     parser.add_argument('--mime-type', help='MIME type for the embedded file')
+    parser.add_argument('--obj-num', type=int, help='Specific object number to use for the embedded file')
+    parser.add_argument('--filespec-obj-num', type=int, help='Specific object number to use for the file specification')
     
     args = parser.parse_args()
     
@@ -265,7 +324,15 @@ def main():
             
             # Embed the file
             print(f"\nEmbedding file: {args.file_to_embed}")
-            embedded_file, filespec = embed_file(pdf, args.file_to_embed, args.mime_type)
+            embedded_file, filespec = embed_file(pdf, args.file_to_embed, args.mime_type, args.filespec_obj_num)
+            
+            # Try to set the embedded file object number if provided
+            if args.obj_num is not None:
+                success = manually_set_object_number(pdf, embedded_file, args.obj_num)
+                if success:
+                    print(f"Successfully set embedded file object number to {args.obj_num}")
+                else:
+                    print(f"Warning: Failed to set embedded file object number to {args.obj_num}")
             
             # Get the assigned object numbers
             embedded_file_num = get_object_number(embedded_file)
