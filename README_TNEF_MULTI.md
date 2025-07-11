@@ -2,9 +2,9 @@
 
 这个项目提供了多种方法来生成包含多个自定义命名文件的TNEF格式文件。
 
-## 方法1：多个TNEF文件
+## 方法1：多个TNEF文件（推荐）
 
-使用`tnef_multi_wrapper.py`脚本创建多个TNEF文件，每个文件包含一个自定义命名的嵌入文件。
+使用`tnef_multi_wrapper.py`脚本创建多个TNEF文件，每个文件包含一个自定义命名的嵌入文件。这是最可靠的方法，可以确保与所有TNEF提取工具兼容。
 
 ### 使用方法
 
@@ -22,7 +22,26 @@ for f in tnef_files/*.dat; do tnef --number-backups $f; done
 
 这将提取所有TNEF文件中的嵌入文件，并使用自定义名称保存。
 
-## 方法2：ZIP归档
+## 方法2：简化的多文件方法
+
+使用`tnef_creator_multi_simple.py`脚本创建多个TNEF文件，并提供一个批处理脚本来提取所有文件。
+
+### 使用方法
+
+```bash
+python tnef_creator_multi_simple.py -a "文件1.txt:自定义名称1.txt" -a "文件2.txt:自定义名称2.txt" -o tnef_files_simple -p tnef_simple
+```
+
+这将在`tnef_files_simple`目录中创建多个TNEF文件，并生成一个`extract_all.sh`脚本来提取所有文件。
+
+### 提取文件
+
+```bash
+cd tnef_files_simple
+./extract_all.sh
+```
+
+## 方法3：ZIP归档
 
 使用`tnef_creator_zip.py`脚本创建一个包含ZIP归档的TNEF文件，该ZIP归档包含多个自定义命名的文件。
 
@@ -41,7 +60,18 @@ tnef winmail.dat
 unzip 我的文件.zip
 ```
 
-这将首先提取TNEF文件中的ZIP归档，然后从ZIP归档中提取自定义命名的文件。
+## 方法4：单个TNEF文件中的多个附件（实验性）
+
+我们尝试了多种方法来在单个TNEF文件中嵌入多个文件，包括：
+
+- `tnef_creator_multi.py`：基本的多文件TNEF生成器
+- `tnef_creator_multi_v2.py`：改进的多文件TNEF生成器
+- `tnef_creator_multi_compatible.py`：兼容性更好的多文件TNEF生成器
+- `tnef_creator_outlook_compatible.py`：基于Microsoft Outlook TNEF格式的多文件TNEF生成器
+
+然而，由于TNEF格式的复杂性和标准TNEF提取工具的限制，这些方法目前与标准TNEF提取工具不兼容。当使用`tnef --number-backups`提取时，会出现错误："mapi_attr.c:176: mapi_attr_read: Assertion `len > 4' failed"。
+
+我们将继续研究TNEF格式，以找到一种在单个TNEF文件中嵌入多个文件的方法，同时保持与标准TNEF提取工具的兼容性。
 
 ## 命令行参数
 
@@ -72,5 +102,6 @@ unzip 我的文件.zip
 
 - 由于TNEF格式的限制，直接在单个TNEF文件中嵌入多个文件可能会导致与某些TNEF提取工具不兼容。
 - 方法1（多个TNEF文件）是最可靠的方法，可以确保与所有TNEF提取工具兼容。
-- 方法2（ZIP归档）提供了一种更紧凑的方式来嵌入多个文件，但需要额外的步骤来提取文件。
+- 方法3（ZIP归档）提供了一种更紧凑的方式来嵌入多个文件，但需要额外的步骤来提取文件。
+- 如果您需要在单个TNEF文件中嵌入多个文件，并且与标准TNEF提取工具兼容，我们建议使用方法1或方法2。
 
