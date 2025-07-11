@@ -2,9 +2,29 @@
 
 这个项目提供了多种方法来生成包含多个自定义命名文件的TNEF格式文件。
 
-## 方法1：多个TNEF文件（推荐）
+## 方法1：单个TNEF文件中的多个附件（推荐）
 
-使用`tnef_multi_wrapper.py`脚本创建多个TNEF文件，每个文件包含一个自定义命名的嵌入文件。这是最可靠的方法，可以确保与所有TNEF提取工具兼容。
+使用`tnef_creator_multi_v3.py`脚本创建一个包含多个自定义命名文件的TNEF文件。这是最推荐的方法，可以与标准TNEF提取工具兼容。
+
+### 使用方法
+
+```bash
+python tnef_creator_multi_v3.py -a "文件1.txt:自定义名称1.txt" -a "文件2.txt:自定义名称2.txt" -o winmail.dat
+```
+
+这将创建一个包含两个嵌入文件的TNEF文件，文件名分别为"自定义名称1.txt"和"自定义名称2.txt"。
+
+### 提取文件
+
+```bash
+tnef --number-backups winmail.dat
+```
+
+这将提取TNEF文件中的所有嵌入文件，并使用自定义名称保存。
+
+## 方法2：多个TNEF文件
+
+使用`tnef_multi_wrapper.py`脚本创建多个TNEF文件，每个文件包含一个自定义命名的嵌入文件。
 
 ### 使用方法
 
@@ -22,7 +42,7 @@ for f in tnef_files/*.dat; do tnef --number-backups $f; done
 
 这将提取所有TNEF文件中的嵌入文件，并使用自定义名称保存。
 
-## 方法2：简化的多文件方法
+## 方法3：简化的多文件方法
 
 使用`tnef_creator_multi_simple.py`脚本创建多个TNEF文件，并提供一个批处理脚本来提取所有文件。
 
@@ -41,7 +61,7 @@ cd tnef_files_simple
 ./extract_all.sh
 ```
 
-## 方法3：ZIP归档
+## 方法4：ZIP归档
 
 使用`tnef_creator_zip.py`脚本创建一个包含ZIP归档的TNEF文件，该ZIP归档包含多个自定义命名的文件。
 
@@ -59,19 +79,6 @@ python tnef_creator_zip.py -a "文件1.txt:自定义名称1.txt" -a "文件2.txt
 tnef winmail.dat
 unzip 我的文件.zip
 ```
-
-## 方法4：单个TNEF文件中的多个附件（实验性）
-
-我们尝试了多种方法来在单个TNEF文件中嵌入多个文件，包括：
-
-- `tnef_creator_multi.py`：基本的多文件TNEF生成器
-- `tnef_creator_multi_v2.py`：改进的多文件TNEF生成器
-- `tnef_creator_multi_compatible.py`：兼容性更好的多文件TNEF生成器
-- `tnef_creator_outlook_compatible.py`：基于Microsoft Outlook TNEF格式的多文件TNEF生成器
-
-然而，由于TNEF格式的复杂性和标准TNEF提取工具的限制，这些方法目前与标准TNEF提取工具不兼容。当使用`tnef --number-backups`提取时，会出现错误："mapi_attr.c:176: mapi_attr_read: Assertion `len > 4' failed"。
-
-我们将继续研究TNEF格式，以找到一种在单个TNEF文件中嵌入多个文件的方法，同时保持与标准TNEF提取工具的兼容性。
 
 ## 命令行参数
 
@@ -98,10 +105,31 @@ unzip 我的文件.zip
 ]
 ```
 
+## 技术细节
+
+### TNEF格式
+
+TNEF（Transport Neutral Encapsulation Format）是Microsoft Outlook和Exchange使用的一种专有格式，用于封装电子邮件附件。TNEF文件通常命名为"winmail.dat"，包含以下组件：
+
+1. 文件头：TNEF签名（0x223e9f78）和16位随机密钥
+2. 消息级属性：消息类、消息ID、主题、日期、正文等
+3. 附件级属性：渲染数据、标题、传输文件名、创建/修改日期、数据等
+4. 附件标记：用于分隔多个附件
+5. 结束标记：表示TNEF文件的结束
+
+### 多文件TNEF实现
+
+`tnef_creator_multi_v3.py`脚本实现了在单个TNEF文件中嵌入多个文件的功能，并确保与标准TNEF提取工具兼容。关键技术点包括：
+
+1. 正确的属性结构：确保每个属性都有正确的级别、ID、类型和数据
+2. 属性长度处理：确保所有属性的长度大于4字节，这是TNEF提取工具的要求
+3. 附件标记：使用正确的附件标记来分隔多个附件
+4. MAPI属性：添加MAPI属性来确保与TNEF提取工具的兼容性
+
 ## 注意事项
 
-- 由于TNEF格式的限制，直接在单个TNEF文件中嵌入多个文件可能会导致与某些TNEF提取工具不兼容。
-- 方法1（多个TNEF文件）是最可靠的方法，可以确保与所有TNEF提取工具兼容。
-- 方法3（ZIP归档）提供了一种更紧凑的方式来嵌入多个文件，但需要额外的步骤来提取文件。
-- 如果您需要在单个TNEF文件中嵌入多个文件，并且与标准TNEF提取工具兼容，我们建议使用方法1或方法2。
+- 方法1（单个TNEF文件中的多个附件）是最推荐的方法，可以与标准TNEF提取工具兼容。
+- 方法2和方法3（多个TNEF文件）也是可靠的方法，但需要额外的步骤来提取所有文件。
+- 方法4（ZIP归档）提供了一种更紧凑的方式来嵌入多个文件，但需要额外的步骤来提取文件。
+- 所有方法都支持自定义嵌入文件的名称，这对于隐藏原始文件名或提供更有意义的文件名非常有用。
 
