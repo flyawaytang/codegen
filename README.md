@@ -1,105 +1,70 @@
-# PDF File Embedder
+# TNEF Creator
 
-A Python tool for embedding files into PDF documents using pikepdf, with automatic object number management.
+这个项目提供了用于生成TNEF格式文件（通常称为winmail.dat）的工具，并允许自定义嵌入的文件名称。
 
-## Features
+## 什么是TNEF？
 
-- Embed files into PDF documents
-- Automatically find free object numbers in the PDF
-- **Manually specify custom object numbers for embedded files and file specifications**
-- Analyze PDF object structure
-- Extract embedded files from PDFs
-- Support for various file types with MIME type detection
+TNEF（Transport Neutral Encapsulation Format）是Microsoft Outlook和Microsoft Exchange Server使用的一种专有电子邮件附件格式。它通常以winmail.dat文件的形式出现，包含了富文本格式的电子邮件和附件。
 
-## Requirements
+## 项目文件
 
-- Python 3.6+
-- pikepdf library
+- `tnef_creator.py` - 基本的TNEF文件生成器
+- `tnef_creator_v2.py` - 增强版TNEF文件生成器，提供更完整的TNEF属性支持
+- `extract_tnef.py` - 使用tnefparse库尝试提取TNEF文件
+- `extract_tnef_manual.py` - 手动解析和提取TNEF文件的工具
 
-## Installation
+## 使用方法
 
-```bash
-pip install pikepdf
-```
-
-## Usage
-
-### Embedding a File
+### 生成TNEF文件
 
 ```bash
-python pdf_file_embedder_final.py input.pdf file_to_embed.txt output.pdf
+python tnef_creator_v2.py -f "自定义文件名.txt" -c 内容文件.txt -o 输出文件.dat
 ```
 
-### Specifying Custom Object Numbers
+参数说明：
+- `-f, --filename` - 要嵌入的自定义文件名（必需）
+- `-c, --content` - 要嵌入的文件内容（可选，如果不提供将使用默认内容）
+- `-o, --output` - 输出的TNEF文件名（可选，默认为winmail.dat）
+
+### 提取TNEF文件
 
 ```bash
-# Specify object number for the embedded file
-python pdf_file_embedder_final.py input.pdf file_to_embed.txt output.pdf --obj-num 42
-
-# Specify object number for the file specification
-python pdf_file_embedder_final.py input.pdf file_to_embed.txt output.pdf --filespec-obj-num 43
-
-# Specify both object numbers
-python pdf_file_embedder_final.py input.pdf file_to_embed.txt output.pdf --obj-num 42 --filespec-obj-num 43
+python extract_tnef_manual.py winmail.dat
 ```
 
-### Analyzing a PDF
+这将从TNEF文件中提取嵌入的文件，并使用嵌入的自定义文件名保存。
+
+## TNEF文件结构
+
+TNEF文件的基本结构如下：
+
+1. TNEF签名（32位值，0x223e9f78）
+2. 密钥（16位随机整数）
+3. 消息级属性（如消息类、消息ID、主题、日期等）
+4. 附件级属性（如渲染数据、标题、传输文件名、MIME类型、创建/修改日期、大小、数据等）
+
+每个属性包含：
+- 级别（消息或附件）
+- 类型（字符串、文本、日期等）
+- ID
+- 长度
+- 数据
+- 校验和
+
+## 示例
 
 ```bash
-python pdf_file_embedder_final.py input.pdf --analyze-only
+# 创建一个TNEF文件，嵌入的文件名为"secret_document.pdf"
+python tnef_creator_v2.py -f "secret_document.pdf" -c 实际文档.pdf
+
+# 提取TNEF文件中的内容
+python extract_tnef_manual.py winmail.dat
+# 这将创建一个名为"secret_document.pdf"的文件
 ```
 
-### Extracting Embedded Files
+## 注意事项
 
-```bash
-python pdf_file_embedder_final.py input.pdf --extract --output-dir ./extracted
-```
-
-### Specifying MIME Type
-
-```bash
-python pdf_file_embedder_final.py input.pdf file_to_embed.bin output.pdf --mime-type application/octet-stream
-```
-
-## How It Works
-
-1. The script opens the input PDF using pikepdf
-2. It scans all objects in the PDF to identify used object numbers
-3. It finds available (free) object numbers
-4. When embedding a file, it creates a new stream object and file specification
-5. If custom object numbers are specified, it attempts to use those numbers
-6. The embedded file is added to the PDF's Names dictionary under EmbeddedFiles
-7. The modified PDF is saved to the output file
-
-## Object Number Management
-
-The script automatically:
-- Identifies all used object numbers in the PDF
-- Finds available object numbers
-- Reports the object number assigned to the embedded file
-- Allows manual specification of object numbers for both the embedded file and file specification
-
-## Example Output
-
-```
-PDF Version: 1.7
-Number of Pages: 5
-Total objects: 157
-Maximum object number: 157
-Available free object numbers: [158, 159, 160, 161, 162, 163, 164, 165, 166, 167]...
-
-Embedding file: secret.txt
-Successfully set file specification object number to 200
-Successfully set embedded file object number to 201
-Embedded file object number: 201
-File specification object number: 200
-Modified PDF saved to: output.pdf
-
-Verifying embedded file...
-Verification successful: Found embedded file 'secret.txt'
-```
-
-## License
-
-MIT
+- 生成的TNEF文件可能不被所有TNEF解析器识别，因为TNEF格式是专有的，没有完整的公开规范。
+- 某些电子邮件客户端可能会自动处理TNEF附件，而其他客户端可能会显示为winmail.dat文件。
+- 这个工具主要用于测试和教育目的。
 

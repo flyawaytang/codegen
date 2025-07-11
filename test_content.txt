@@ -1,0 +1,3 @@
+This is a test file that will be embedded in the TNEF file.
+The embedded filename can be customized to whatever you want.
+
