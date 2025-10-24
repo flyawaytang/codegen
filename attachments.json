@@ -1,0 +1,11 @@
+[
+  {
+    "file": "test_file1.txt",
+    "name": "json_file1.txt"
+  },
+  {
+    "file": "test_file2.txt",
+    "name": "json_file2.txt"
+  }
+]
+

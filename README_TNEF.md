@@ -1,4 +1,4 @@
-# TNEF Creator
+# TNEF文件生成器
 
 这个项目提供了用于生成TNEF格式文件（通常称为winmail.dat）的工具，并允许自定义嵌入的文件名称。
 
@@ -10,6 +10,10 @@ TNEF（Transport Neutral Encapsulation Format）是Microsoft Outlook和Microsoft
 
 - `tnef_creator.py` - 基本的TNEF文件生成器
 - `tnef_creator_v2.py` - 增强版TNEF文件生成器，提供更完整的TNEF属性支持
+- `tnef_creator_v3.py` - 修复日期属性的TNEF文件生成器
+- `tnef_creator_v4.py` - 进一步改进的TNEF文件生成器
+- `tnef_creator_simple.py` - 简化版TNEF文件生成器
+- `tnef_creator_compatible.py` - 最终兼容版TNEF文件生成器，支持`--number-backups`选项
 - `extract_tnef.py` - 使用tnefparse库尝试提取TNEF文件
 - `extract_tnef_manual.py` - 手动解析和提取TNEF文件的工具
 
@@ -18,7 +22,7 @@ TNEF（Transport Neutral Encapsulation Format）是Microsoft Outlook和Microsoft
 ### 生成TNEF文件
 
 ```bash
-python tnef_creator_v2.py -f "自定义文件名.txt" -c 内容文件.txt -o 输出文件.dat
+python tnef_creator_compatible.py -f "自定义文件名.txt" -c 内容文件.txt -o 输出文件.dat
 ```
 
 参数说明：
@@ -33,6 +37,20 @@ python extract_tnef_manual.py winmail.dat
 ```
 
 这将从TNEF文件中提取嵌入的文件，并使用嵌入的自定义文件名保存。
+
+或者，您也可以使用标准的TNEF提取工具：
+
+```bash
+tnef winmail.dat
+```
+
+如果您想在提取时避免覆盖现有文件，可以使用`--number-backups`选项：
+
+```bash
+tnef --number-backups winmail.dat
+```
+
+这将创建带有数字后缀的备份文件，而不是覆盖原有文件。
 
 ## TNEF文件结构
 
@@ -55,7 +73,7 @@ TNEF文件的基本结构如下：
 
 ```bash
 # 创建一个TNEF文件，嵌入的文件名为"secret_document.pdf"
-python tnef_creator_v2.py -f "secret_document.pdf" -c 实际文档.pdf
+python tnef_creator_compatible.py -f "secret_document.pdf" -c 实际文档.pdf
 
 # 提取TNEF文件中的内容
 python extract_tnef_manual.py winmail.dat
